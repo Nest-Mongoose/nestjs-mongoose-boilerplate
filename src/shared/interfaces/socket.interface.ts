@@ -1,5 +1,6 @@
-import { type User } from '@prisma/client';
 import { Socket as IOSocket } from 'socket.io';
+
+import { type User } from '@/shared/schemas/user.schema';
 
 type SocketId = string;
 

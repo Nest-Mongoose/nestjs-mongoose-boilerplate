@@ -3,7 +3,7 @@ import { APP_ENV, ENV } from '@/shared/enums';
 import { transformToBoolean, transformToInt } from '../helpers';
 
 export const Configuration = () => ({
-  [ENV.APP_NAME]: process.env.APP_NAME || 'nestjs-prisma-boilerplate',
+  [ENV.APP_NAME]: process.env.APP_NAME || 'nestjs-mongoose-boilerplate',
   [ENV.APP_ENV]: process.env.APP_ENV || APP_ENV.DEV,
   [ENV.IS_PRD]: process.env.APP_ENV === APP_ENV.PRD,
   [ENV.IS_TEST]: process.env.APP_ENV === APP_ENV.TEST,

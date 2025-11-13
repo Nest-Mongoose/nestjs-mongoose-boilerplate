@@ -9,7 +9,6 @@ COPY ["package.json", "yarn.lock", "tsconfig.json", "tsconfig.build.json", "./"]
 RUN ls
 RUN yarn --frozem-lockfile
 COPY . .
-RUN yarn prisma:generate
 RUN yarn build
 
 EXPOSE 5100

@@ -31,8 +31,12 @@ export class SocketAuthMiddleware implements NestMiddleware {
       const payload = this.jwtService.verify(token, {
         secret,
       });
-      socket.user = await this.authService.findUserByEmail(payload.email); // Attach user info for further usage
-      socket.id = socket.user?.id ?? socket.id;
+      const user = await this.authService.findUserByEmail(payload.email); // Attach user info for further usage
+      if (user) {
+        delete user.password;
+        socket.user = user;
+        socket.id = user.id ?? socket.id;
+      }
       next();
     } catch (err) {
       this.logger.error(err, '', LOGGER_CONTEXT.GATEWAYS);

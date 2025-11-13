@@ -1,18 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, User } from '@prisma/client';
+import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
+import { Model } from 'mongoose';
 
-import { PrismaService } from '@/core/database/prisma.service';
+import { User, UserDocument } from '@/shared/schemas/user.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    private prisma: PrismaService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
-  async validateUser({ email, password }: { email: string; password: string }): Promise<User> {
+  async validateUser({ email, password }: { email: string; password: string }): Promise<any> {
     const user = await this.findUserByEmail(email);
 
     if (!user) {
@@ -28,7 +29,7 @@ export class AuthService {
     return user;
   }
 
-  async login(user: Pick<User, 'email' | 'id'>) {
+  async login(user: any) {
     const payload = { email: user.email, sub: user.id };
 
     return {
@@ -36,23 +37,24 @@ export class AuthService {
     };
   }
 
-  async findUserByEmail(email: string): Promise<User> {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+  async findUserByEmail(email: string): Promise<User | null> {
+    return (await this.userModel.findOne({ email }).exec())?.toObject() || null;
   }
 
-  public async saveUser(data: Prisma.UserCreateInput): Promise<User> {
+  public async saveUser(data: {
+    email: string;
+    password: string;
+    name: string;
+    gender?: string;
+  }): Promise<User> {
     data.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync());
     try {
-      return await this.prisma.user.create({
-        data,
-      });
+      const user = (await this.userModel.create(data)).toObject();
+      delete user.password;
+
+      return user;
     } catch (error) {
-      if (
-        error.code?.toLowerCase() === 'p2002' &&
-        error.meta?.target?.toLowerCase() === 'users_email_key'
-      ) {
+      if (error.code === 11000 && error.keyPattern?.email) {
         throw new BadRequestException('Email already in use. Please try a different email.');
       }
       throw error;

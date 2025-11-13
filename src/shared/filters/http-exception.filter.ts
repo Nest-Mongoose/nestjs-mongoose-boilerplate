@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Error as MongooseError } from 'mongoose';
 
 import { APP_ENV, ENV, LOGGER_CONTEXT } from '../enums';
 
@@ -27,20 +27,29 @@ export class AllExceptionFilter implements ExceptionFilter {
 
     let message = exception instanceof Error ? exception.message : 'Internal Server Error';
 
-    if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-      const prismaCode = exception.code?.toLowerCase() || '';
-
-      switch (prismaCode) {
-        case 'p2002':
-          status = HttpStatus.CONFLICT;
-          message = 'Unique constraint failed';
-          break;
-        case 'p2025':
-          status = HttpStatus.NOT_FOUND;
-          message = 'Not Found';
-          break;
-      }
+    // Handle Mongoose validation errors
+    if (exception instanceof MongooseError.ValidationError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = Object.values(exception.errors)
+        .map((err) => err.message)
+        .join(', ');
     }
+    // Handle Mongoose duplicate key errors (MongoDB E11000)
+    else if ((exception as any)?.code === 11000) {
+      status = HttpStatus.CONFLICT;
+      message = 'Unique constraint failed';
+    }
+    // Handle Mongoose cast errors (invalid ObjectId, etc.)
+    else if (exception instanceof MongooseError.CastError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Invalid ID format';
+    }
+    // Handle Mongoose document not found errors
+    else if (exception instanceof MongooseError.DocumentNotFoundError) {
+      status = HttpStatus.NOT_FOUND;
+      message = 'Not Found';
+    }
+
     const result = {
       statusCode: status,
       timestamp: new Date().toISOString(),
