@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { ENV } from '@/shared/enums';
+import * as Schemas from '@/shared/schemas';
 
 @Module({
   imports: [
@@ -15,6 +16,14 @@ import { ENV } from '@/shared/enums';
         };
       },
     }),
+    MongooseModule.forFeature(
+      Object.entries(Schemas)
+        .filter(([key]) => key.endsWith('Schema'))
+        .map(([key, schema]) => ({
+          name: key.replace('Schema', ''),
+          schema,
+        })),
+    ),
   ],
   exports: [MongooseModule],
 })
