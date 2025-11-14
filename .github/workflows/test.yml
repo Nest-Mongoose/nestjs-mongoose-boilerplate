@@ -12,44 +12,44 @@ on:
 
 env:
   NODE_OPTIONS: '--max_old_space_size=8192'
-  APP_NAME: ${{ secrets.APP_NAME }}
-  APP_ENV: ${{ secrets.APP_ENV }}
-  APP_PORT: ${{ secrets.APP_PORT }}
-  WORKER_PORT: ${{ secrets.WORKER_PORT }}
+  APP_NAME: 'nestjs-prisma-boilerplate'
+  APP_ENV: 'test'
+  APP_PORT: '5000'
+  WORKER_PORT: '5001'
 
-  USER_SECRET: ${{ secrets.USER_SECRET }}
-  USER_REFRESH_SECRET: ${{ secrets.USER_REFRESH_SECRET }}
-  USER_TOKEN_EXPIRE_IN: ${{ secrets.USER_TOKEN_EXPIRE_IN }}
-  USER_REFRESH_TOKEN_EXPIRE_IN: ${{ secrets.USER_REFRESH_TOKEN_EXPIRE_IN }}
+  USER_SECRET: 'USER_SECRET'
+  USER_REFRESH_SECRET: 'USER_REFRESH_SECRET'
+  USER_TOKEN_EXPIRE_IN: '1d'
+  USER_REFRESH_TOKEN_EXPIRE_IN: '7d'
 
-  ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
-  ADMIN_REFRESH_SECRET: ${{ secrets.ADMIN_REFRESH_SECRET }}
-  ADMIN_TOKEN_EXPIRE_IN: ${{ secrets.ADMIN_TOKEN_EXPIRE_IN }}
-  ADMIN_REFRESH_TOKEN_EXPIRE_IN: ${{ secrets.ADMIN_REFRESH_TOKEN_EXPIRE_IN }}
+  ADMIN_SECRET: 'ADMIN_SECRET'
+  ADMIN_REFRESH_SECRET: 'ADMIN_REFRESH_SECRET'
+  ADMIN_TOKEN_EXPIRE_IN: '15m'
+  ADMIN_REFRESH_TOKEN_EXPIRE_IN: '7d'
 
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  DATABASE_URL: 'mongodb://mongodb:27017/nestjs-prisma-boilerplate'
 
-  CACHE_MODE: ${{ secrets.CACHE_MODE }}
-  CACHE_TTL: ${{ secrets.CACHE_TTL }}
+  CACHE_MODE: 'redis'
+  CACHE_TTL: '3600'
 
-  USE_QUEUE: ${{ secrets.USE_QUEUE }}
+  USE_QUEUE: 'true'
 
-  REDIS_MODE: ${{ secrets.REDIS_MODE }}
-  REDIS_URL: ${{ secrets.REDIS_URL }}
+  REDIS_MODE: 'single'
+  REDIS_URL: 'redis://redis:6379'
 
-  LOGGER_TYPE: ${{ secrets.LOGGER_TYPE }}
-  LOGGER_MAX_FILES: ${{ secrets.LOGGER_MAX_FILES }}
-  LOGGER_LEVEL: ${{ secrets.LOGGER_LEVEL }}
-  LOGGER_DATABASE_URL: ${{ secrets.LOGGER_DATABASE_URL }}
+  LOGGER_TYPE: 'winston'
+  LOGGER_MAX_FILES: '30d'
+  LOGGER_LEVEL: 'warn'
+  LOGGER_DATABASE_URL: 'mongodb://mongodb:27017/nestjs-prisma-boilerplate'
 
-  SWAGGER_TITLE: ${{ secrets.SWAGGER_TITLE }}
-  SWAGGER_DESCRIPTION: ${{ secrets.SWAGGER_DESCRIPTION }}
-  SWAGGER_VERSION: ${{ secrets.SWAGGER_VERSION }}
-  SWAGGER_FAVICON: ${{ secrets.SWAGGER_FAVICON }}
-  SWAGGER_ENDPOINT: ${{ secrets.SWAGGER_ENDPOINT }}
+  SWAGGER_TITLE: 'NestJS Prisma Boilerplate'
+  SWAGGER_DESCRIPTION: 'NestJS Prisma Boilerplate'
+  SWAGGER_VERSION: '1.0.0'
+  SWAGGER_FAVICON: 'https://nestjs.com/img/logo-small.svg'
+  SWAGGER_ENDPOINT: '/swagger'
 
-  UPLOAD_PATH: ${{ secrets.UPLOAD_PATH }}
-  BODY_SIZE: ${{ secrets.BODY_SIZE }}
+  UPLOAD_PATH: 'uploads'
+  BODY_SIZE: '10mb'
 
 jobs:
   test:
@@ -63,6 +63,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+      mongodb:
+        image: mongo:7
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: ./src
