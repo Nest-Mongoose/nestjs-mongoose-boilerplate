@@ -35,7 +35,7 @@ export const Configuration = () => ({
   [ENV.REDIS_MODE]: process.env.REDIS_MODE || 'single',
   [ENV.REDIS_URL]: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
 
-  [ENV.LOGGER_TYPE]: process.env.LOGGER || 'winston',
+  [ENV.LOGGER_TYPE]: process.env.LOGGER_TYPE || 'winston',
   [ENV.LOGGER_MAX_FILES]: process.env.LOGGER_MAX_FILES || '30d',
   [ENV.LOGGER_LEVEL]: process.env.LOGGER_LEVEL || 'warn',
   [ENV.LOGGER_DATABASE_URL]: process.env.LOGGER_DATABASE_URL,
