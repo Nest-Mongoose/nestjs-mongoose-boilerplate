@@ -46,6 +46,11 @@ export enum CACHE_TYPE {
   MEMORY = 'memory',
 }
 
+export enum REDIS_MODE {
+  SINGLE = 'single',
+  CLUSTER = 'cluster',
+}
+
 export enum LOGGER_TYPE {
   WINSTON = 'winston',
 }

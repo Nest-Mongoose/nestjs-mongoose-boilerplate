@@ -1,3 +1,6 @@
+import * as os from 'os';
+import * as path from 'path';
+
 import { APP_ENV, ENV } from '@/shared/enums';
 
 import { transformToBoolean, transformToInt } from '../helpers';
@@ -36,6 +39,9 @@ export const Configuration = () => ({
   [ENV.LOGGER_MAX_FILES]: process.env.LOGGER_MAX_FILES || '30d',
   [ENV.LOGGER_LEVEL]: process.env.LOGGER_LEVEL || 'warn',
   [ENV.LOGGER_DATABASE_URL]: process.env.LOGGER_DATABASE_URL,
+
+  [ENV.UPLOAD_PATH]: path.join(os.tmpdir(), process.env.UPLOAD_FOLDER || 'upload'),
+  [ENV.BODY_SIZE]: process.env.BODY_SIZE || '10mb',
 
   [ENV.SWAGGER_TITLE]: process.env.SWAGGER_TITLE || 'Nest.js boilerplate',
   [ENV.SWAGGER_DESCRIPTION]: process.env.SWAGGER_DESCRIPTION || 'Nest.js boilerplate',
