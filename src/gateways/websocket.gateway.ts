@@ -1,4 +1,4 @@
-import { Logger, UseFilters } from '@nestjs/common';
+import { Logger, OnModuleInit, UseFilters } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   OnGatewayConnection,
@@ -9,10 +9,16 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { createClient } from 'redis';
+import { createClient, createCluster } from 'redis';
 import { Server, Socket } from 'socket.io';
 
-import { ENV, LOGGER_CONTEXT, WEBSOCKET_CORS_ORIGINS, WEBSOCKET_TRANSPORTS } from '@/shared/enums';
+import {
+  ENV,
+  LOGGER_CONTEXT,
+  REDIS_MODE,
+  WEBSOCKET_CORS_ORIGINS,
+  WEBSOCKET_TRANSPORTS,
+} from '@/shared/enums';
 import { WsExceptionFilter } from '@/shared/filters';
 import { SocketAuthMiddleware } from '@/shared/middlewares';
 
@@ -23,7 +29,9 @@ import { SocketAuthMiddleware } from '@/shared/middlewares';
   },
 })
 @UseFilters(WsExceptionFilter)
-export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class WebsocketGateway
+  implements OnModuleInit, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(WebsocketGateway.name);
 
   private redisPubClient;
@@ -38,15 +46,31 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
     private readonly socketAuthMiddleware: SocketAuthMiddleware,
   ) {}
 
+  afterInit(_server: any) {}
+
   async onModuleInit() {
     try {
       // Create Redis clients for pub/sub
-      this.redisPubClient = createClient({
-        url: this.configService.get(ENV.REDIS_URL),
-        socket: {
-          reconnectStrategy: (retries) => Math.min(retries * 100, 5000),
-        },
-      });
+      const redisMode = this.configService.get(ENV.REDIS_MODE);
+      const redisUrl = this.configService.get(ENV.REDIS_URL);
+      if (redisMode === REDIS_MODE.SINGLE) {
+        this.redisPubClient = createClient({
+          url: redisUrl,
+          socket: {
+            reconnectStrategy: (retries) => Math.min(retries * 100, 5000),
+          },
+        });
+      } else {
+        this.redisPubClient = createCluster({
+          rootNodes: [{ url: redisUrl }],
+          useReplicas: true,
+          defaults: {
+            socket: {
+              reconnectStrategy: (retries) => Math.min(retries * 100, 5000),
+            },
+          },
+        });
+      }
       this.redisSubClient = this.redisPubClient.duplicate();
 
       this.redisPubClient.on('error', (err) =>
@@ -58,18 +82,16 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
       await Promise.allSettled([this.redisPubClient.connect(), this.redisSubClient.connect()]);
 
-      this.logger.log('Redis clients connected successfully', LOGGER_CONTEXT.GATEWAYS);
+      // Attach the Redis adapter to the server
+      if (this.redisPubClient && this.redisSubClient) {
+        this.server.adapter(createAdapter(this.redisPubClient, this.redisSubClient));
+        this.logger.log('Redis adapter attached to server', LOGGER_CONTEXT.GATEWAYS);
+      } else {
+        this.logger.error('Redis adapter not attached to server', LOGGER_CONTEXT.GATEWAYS);
+      }
     } catch (error) {
       this.logger.error('Redis connection failed', error, LOGGER_CONTEXT.GATEWAYS);
       throw error;
-    }
-  }
-
-  afterInit() {
-    // Attach the Redis adapter to the server
-    if (this.redisPubClient && this.redisSubClient) {
-      this.server.adapter(createAdapter(this.redisPubClient, this.redisSubClient));
-      this.logger.log('Redis adapter attached to server', LOGGER_CONTEXT.GATEWAYS);
     }
 
     this.server.use((socket, next) => this.socketAuthMiddleware.use(socket, next));

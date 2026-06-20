@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nest-api
+  namespace: default
+  labels:
+    app: nest-api
+    product: nestjs-prisma-boilerplate
+    service: nestjs-api
+    runtime: web
+  annotations:
+    secrets.doppler.com/reload: 'true'
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: nest-api
+  template:
+    metadata:
+      labels:
+        app: nest-api
+        product: nestjs-prisma-boilerplate
+        service: nestjs-api
+        runtime: web
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: nest-api
+          image: '{{BASE_REPOSITORY}}/nest-api:{{SHORTHASH}}'
+          envFrom:
+            - secretRef:
+                name: nest-api
+          env:
+            - name: LOGGER_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LOGGER_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LOGGER_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5300
+          args: ['yarn', 'prod']
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5300
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            successThreshold: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5300
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5300
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ['/bin/sh', '-c', 'sleep 10']
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nest-api
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /healthcheck
+spec:
+  type: NodePort
+  ports:
+    - port: 5300
+      name: nest-api
+  selector:
+    app: nest-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nest-worker
+  namespace: default
+  labels:
+    app: nest-worker
+    product: nestjs-prisma-boilerplate
+    service: nestjs-api
+    runtime: worker
+  annotations:
+    secrets.doppler.com/reload: 'true'
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: nest-worker
+  template:
+    metadata:
+      labels:
+        app: nest-worker
+        product: nestjs-prisma-boilerplate
+        service: nestjs-api
+        runtime: worker
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: nest-worker
+          image: '{{BASE_REPOSITORY}}/nest-api:{{SHORTHASH}}'
+          envFrom:
+            - secretRef:
+                name: nest-api
+          env:
+            - name: LOGGER_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LOGGER_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LOGGER_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5301
+          args: ['yarn', 'prod:worker']
+          lifecycle:
+            preStop:
+              exec:
+                command: ['/bin/sh', '-c', 'sleep 10']
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi

@@ -1,13 +1,14 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ForbiddenException, Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
 import 'reflect-metadata';
 import 'winston-daily-rotate-file';
 
 import { ENV, LOGGER_TYPE } from './shared/enums';
 import { AllExceptionFilter } from './shared/filters';
-import { getWinstronLogger } from './shared/helpers';
+import { type WinstonLoggerOptions, getWinstronLogger } from './shared/helpers';
 import { setupSwagger } from './swagger';
 import { WebModule } from './web/web.module';
 
@@ -34,7 +35,22 @@ async function bootstrap() {
     const datePattern = 'YYYY-MM-DD';
     const logLevel = configService.get(ENV.LOGGER_LEVEL);
     const dbUrl = configService.get(ENV.LOGGER_DATABASE_URL);
-    web.useLogger(getWinstronLogger(maxFiles, datePattern, 'App', logLevel, dbUrl, 'web'));
+    const appEnv = configService.get<string>(ENV.APP_ENV);
+    const loggerOptions: WinstonLoggerOptions = {
+      maxFiles,
+      datePattern,
+      defaultContext: 'App',
+      logLevel,
+      dbUrl,
+      dbCollectionSuffix: 'web',
+      appEnv,
+      runtime: 'web',
+      podName: configService.get<string>(ENV.LOGGER_POD_NAME),
+      podNamespace: configService.get<string>(ENV.LOGGER_POD_NAMESPACE),
+      nodeName: configService.get<string>(ENV.LOGGER_NODE_NAME),
+    };
+
+    web.useLogger(getWinstronLogger(loggerOptions));
   }
 
   web.useGlobalPipes(
@@ -46,8 +62,15 @@ async function bootstrap() {
 
   // Configure body parser with size limit from environment
   const bodySize = configService.get(ENV.BODY_SIZE);
-  web.use(json({ verify: rawBodyBuffer, limit: bodySize }));
+  web.use(
+    json({
+      verify: rawBodyBuffer,
+      limit: bodySize,
+      type: ['application/json', 'application/webhook+json'],
+    }),
+  );
   web.use(urlencoded({ verify: rawBodyBuffer, limit: bodySize, extended: true }));
+  web.use(cookieParser());
 
   web.useGlobalFilters(new AllExceptionFilter(configService, logger));
 
@@ -55,16 +78,15 @@ async function bootstrap() {
 
   web.enableCors({
     origin: (origin, callback) => {
-      // Allow all subdomains of postman.co
-      const allowedOrigins: RegExp[] = [/^http:\/\/localhost/];
+      const allowedCors = (configService.get(ENV.ALLOWED_CORS) || '').split(',');
 
-      // Check if the request's origin matches any of the allowed patterns
-      if (!origin || allowedOrigins.some((regex) => regex.test(origin))) {
-        callback(null, true);
+      if (!origin || allowedCors.includes(origin)) {
+        callback(null, origin);
       } else {
-        callback(new Error(`Not allowed by CORS (${origin})`));
+        callback(new ForbiddenException(`Not allowed by CORS (${origin})`));
       }
     },
+    credentials: true,
   });
 
   const port = configService.get(ENV.APP_PORT);

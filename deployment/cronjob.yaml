@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nest-winston-log-cleanup
+  namespace: cronjob
+  labels:
+    app: nest-winston-log-cleanup
+spec:
+  schedule: '0 3 * * *'
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: nest-winston-log-cleanup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: chatchat-winston-log-cleanup
+              image: curlimages/curl:latest
+              args:
+                - --fail
+                - --show-error
+                - --silent
+                - -X
+                - POST
+                - -H
+                - 'Content-Type: application/json'
+                - -H
+                - 'x-webhook-password: $(WEBHOOK_PASSWORD)'
+                - -d
+                - '{}'
+                - 'http://nest-api.default.svc.cluster.local:5600/webhook/logs/cleanup'
+              env:
+                - name: WEBHOOK_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: cbd
+                      key: WEBHOOK_PASSWORD

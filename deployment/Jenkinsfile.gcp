@@ -1,0 +1,120 @@
+pipeline {
+  agent any
+  environment {
+    SHORTHASH = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    APP_ENV = ''
+    GKE_CLUSTER = ''
+    GKE_REGION = 'asia-southeast1-a'
+    GCR_REPO = 'nest-api'
+  }
+
+  stages {
+    stage('Get Env') {
+      steps {
+        script {
+          def BRANCH = env.BRANCH_NAME
+          if (BRANCH == 'main') {
+            APP_ENV = 'prod'
+          } else if (BRANCH == 'staging') {
+            APP_ENV = 'staging'
+          } else {
+            echo "Unsupported branch: ${BRANCH}"
+            error("Unsupported branch: ${BRANCH}")
+          }
+          GKE_CLUSTER = "${APP_ENV}-cluster"
+        }
+      }
+    }
+
+    stage('Authenticate with GCP') {
+      steps {
+        script {
+          withCredentials([
+            file(credentialsId: 'gcp-sa-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
+            string(credentialsId: 'gcp-project-name', variable: 'GCP_PROJECT')
+          ]) {
+            sh """
+              gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+              gcloud config set project $GCP_PROJECT
+              gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_REGION
+            """
+          }
+        }
+      }
+    }
+
+    stage('Build & Push Image to GCR') {
+      steps {
+        catchError(buildResult: 'FAILURE') {
+          withCredentials([string(credentialsId: 'gcp-project-name', variable: 'GCP_PROJECT')]) {
+            sh """
+              docker build --platform=linux/amd64 -t nest-api:$SHORTHASH -f deployment/Dockerfile .
+              docker tag nest-api:$SHORTHASH gcr.io/$GCP_PROJECT/$GCR_REPO:$SHORTHASH
+              gcloud auth configure-docker
+              docker push gcr.io/$GCP_PROJECT/$GCR_REPO:$SHORTHASH
+            """
+          }
+        }
+      }
+    }
+
+    stage('Deploy to GKE') {
+      steps {
+        catchError(buildResult: 'FAILURE') {
+          withCredentials([
+            string(credentialsId: 'gcp-project-name', variable: 'GCP_PROJECT')
+          ]) {
+            sh """
+              cat deployment/deployment.yaml | sed -e 's|{{BASE_REPOSITORY}}|gcr.io/${GCP_PROJECT}|g' -e 's|{{SHORTHASH}}|${SHORTHASH}|g' | kubectl apply -f -
+              kubectl apply -f deployment/cronjob.yaml
+            """
+          }
+        }
+      }
+    }
+
+    stage('Notify Slack') {
+      steps {
+        script {
+          withCredentials([string(credentialsId: 'slack-channel', variable: 'SLACK_CHANNEL')]) {
+            def slackMessage
+            def prettyAppEnv = (APP_ENV == 'prod') ? 'PRODUCTION' : (APP_ENV == 'staging') ? 'STAGING' : 'Unknown'
+
+            if (currentBuild.resultIsBetterOrEqualTo('SUCCESS')) {
+              slackMessage = "<!channel> <App name> ${prettyAppEnv} API is successfully deployed.\n${env.BUILD_URL}"
+
+              def attachments = [
+                [
+                  text: slackMessage,
+                  fallback: slackMessage,
+                  color: currentBuild.resultIsBetterOrEqualTo('SUCCESS') ? 'good' : 'danger'
+                ]
+              ]
+
+              slackSend(channel: "${SLACK_CHANNEL}", attachments: attachments)
+            }
+          }
+        }
+      }
+    }
+
+  }
+
+  post {
+    failure {
+      script {
+        withCredentials([string(credentialsId: 'slack-channel', variable: 'SLACK_CHANNEL')]) {
+          def prettyAppEnv = (APP_ENV == 'prod') ? 'PRODUCTION' : (APP_ENV == 'staging') ? 'STAGING' : 'Unknown'
+          def attachments = [
+            [
+              text: "<!channel> <App name> ${prettyAppEnv} API deployment failed.\n${env.BUILD_URL}",
+              fallback: "<!channel> <App name> ${prettyAppEnv} API deployment failed.\n${env.BUILD_URL}",
+              color: 'danger'
+            ]
+          ]
+          slackSend(channel: "${SLACK_CHANNEL}", attachments: attachments)
+        }
+      }
+    }
+  }
+}
