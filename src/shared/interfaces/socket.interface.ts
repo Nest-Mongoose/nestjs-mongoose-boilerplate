@@ -1,12 +1,9 @@
 import { Socket as IOSocket } from 'socket.io';
 
-import { type User } from '@/shared/schemas/user.schema';
-
-type SocketId = string;
+import { type AuthenticatedUser } from '../../web/features/auth/auth.service.js';
 
 export class Socket extends IOSocket {
-  id: SocketId;
-  user?: User;
+  user?: AuthenticatedUser;
   roomType?: string;
   roomId?: string;
   room?: string;

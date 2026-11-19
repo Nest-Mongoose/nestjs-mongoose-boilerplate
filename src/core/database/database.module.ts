@@ -2,19 +2,17 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { ENV } from '@/shared/enums';
-import * as Schemas from '@/shared/schemas';
+import { ENV } from '../../shared/enums/index.js';
+import * as Schemas from '../../shared/schemas/index.js';
 
 @Module({
   imports: [
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        return {
-          uri: configService.get<string>(ENV.DATABASE_URL),
-        };
-      },
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.getOrThrow<string>(ENV.DATABASE_URL),
+      }),
     }),
     MongooseModule.forFeature(
       Object.entries(Schemas)

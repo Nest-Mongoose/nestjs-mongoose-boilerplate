@@ -8,10 +8,10 @@ services:
     build:
       context: ..
       dockerfile: ./deployment/Dockerfile
-    image: 'nestjs-prisma-api'
+    image: 'nestjs-mongoose-api'
     volumes:
       - ./src:/app/src
-      - /var/log/nestjs-prisma:/var/log/nestjs-prisma
+      - /var/log/nestjs-mongoose:/var/log/nestjs-mongoose
     ports:
       - '5100:5100'
     links:

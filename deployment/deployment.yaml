@@ -5,7 +5,7 @@ metadata:
   namespace: default
   labels:
     app: nest-api
-    product: nestjs-prisma-boilerplate
+    product: nestjs-mongoose-boilerplate
     service: nestjs-api
     runtime: web
   annotations:
@@ -23,7 +23,7 @@ spec:
     metadata:
       labels:
         app: nest-api
-        product: nestjs-prisma-boilerplate
+        product: nestjs-mongoose-boilerplate
         service: nestjs-api
         runtime: web
     spec:
@@ -108,7 +108,7 @@ metadata:
   namespace: default
   labels:
     app: nest-worker
-    product: nestjs-prisma-boilerplate
+    product: nestjs-mongoose-boilerplate
     service: nestjs-api
     runtime: worker
   annotations:
@@ -126,7 +126,7 @@ spec:
     metadata:
       labels:
         app: nest-worker
-        product: nestjs-prisma-boilerplate
+        product: nestjs-mongoose-boilerplate
         service: nestjs-api
         runtime: worker
     spec:

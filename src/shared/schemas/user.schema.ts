@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsMongoId, IsOptional, IsString, MaxLength } from 'class-validator';
 import { HydratedDocument } from 'mongoose';
 
-import { GENDER } from '@/shared/enums';
+import { GENDER } from '../enums/index.js';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -23,19 +23,19 @@ export class User {
   @IsEmail()
   @MaxLength(100)
   @ApiProperty({ description: 'Email', default: 'john@nest.com' })
-  email: string;
+  email!: string;
 
   @Prop({ type: String, required: true })
   @IsString()
   @MaxLength(100)
   @ApiProperty({ description: 'Password' })
-  password: string;
+  password!: string;
 
   @Prop({ type: String, required: true })
   @IsString()
   @MaxLength(100)
   @ApiProperty({ description: 'Name', default: 'John' })
-  name: string;
+  name!: string;
 
   @Prop({ type: String, required: false })
   @IsEnum(GENDER)
