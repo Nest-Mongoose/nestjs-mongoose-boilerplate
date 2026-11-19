@@ -9,8 +9,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Error as MongooseError } from 'mongoose';
 
-import { APP_ENV, ENV, LOGGER_CONTEXT } from '../enums';
-import { getLogUserId, sanitizeLogUrl } from '../helpers';
+import { APP_ENV, ENV, LOGGER_CONTEXT } from '../enums/index.js';
+import { getLogUserId, sanitizeLogUrl } from '../helpers/index.js';
 
 type RequestLogSource = {
   method?: string;
@@ -27,6 +27,33 @@ type ResponseWithLocals = {
     json: (body: unknown) => unknown;
   };
 };
+
+interface ErrorResponse {
+  statusCode: number;
+  timestamp: string;
+  path: string;
+  message: string;
+  body?: unknown;
+  error?: unknown;
+}
+
+type MongoDuplicateKeyError = {
+  code: number;
+  keyPattern?: Record<string, unknown>;
+};
+
+function isMongoDuplicateKeyError(error: unknown): error is MongoDuplicateKeyError {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const candidate = error as Record<string, unknown>;
+  return (
+    candidate.code === 11000 &&
+    (candidate.keyPattern === undefined ||
+      (typeof candidate.keyPattern === 'object' && candidate.keyPattern !== null))
+  );
+}
 
 @Catch()
 export class AllExceptionFilter implements ExceptionFilter {
@@ -52,7 +79,7 @@ export class AllExceptionFilter implements ExceptionFilter {
         .join(', ');
     }
     // Handle Mongoose duplicate key errors (MongoDB E11000)
-    else if ((exception as any)?.code === 11000) {
+    else if (isMongoDuplicateKeyError(exception)) {
       status = HttpStatus.CONFLICT;
       message = 'Unique constraint failed';
     }
@@ -67,19 +94,19 @@ export class AllExceptionFilter implements ExceptionFilter {
       message = 'Not Found';
     }
 
-    const result = {
+    const result: ErrorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: sanitizeLogUrl(request.originalUrl || request.url),
+      path: sanitizeLogUrl(request.originalUrl || request.url) || '',
       message,
     };
 
-    if (exception['response']) {
-      result['body'] = exception['response'];
+    if (exception instanceof HttpException) {
+      result.body = exception.getResponse();
     }
 
     if (this.configService.get<string>(ENV.APP_ENV) === APP_ENV.DEV) {
-      result['error'] = exception;
+      result.error = exception;
     }
 
     const trace = exception instanceof Error ? exception.stack : undefined;
