@@ -22,6 +22,7 @@ export class RedisResourcesService implements OnApplicationShutdown {
   readonly bullConnection: BullRedisConnection;
 
   private readonly bullCluster?: IORedisCluster;
+  private readonly cacheCluster?: { destroy: () => void };
 
   constructor(private readonly configService: ConfigService) {
     const redisMode = configService.get(ENV.REDIS_MODE);
@@ -29,10 +30,13 @@ export class RedisResourcesService implements OnApplicationShutdown {
 
     if (configService.get(ENV.CACHE_MODE) === CACHE_TYPE.REDIS) {
       const prefix = `{\`${configService.get(ENV.APP_NAME)}\`}:${configService.get(ENV.APP_ENV)}`;
+      const cacheCluster =
+        redisMode === REDIS_MODE.CLUSTER ? this.createCacheCluster(url) : undefined;
+      this.cacheCluster = cacheCluster;
       const redisAdapter =
         redisMode === REDIS_MODE.SINGLE
           ? new KeyvRedis(url, { namespace: prefix })
-          : new KeyvRedis(this.createCacheCluster(url), { namespace: prefix });
+          : new KeyvRedis(cacheCluster!, { namespace: prefix });
 
       this.cacheStore = new Keyv({
         store: redisAdapter,
@@ -51,7 +55,27 @@ export class RedisResourcesService implements OnApplicationShutdown {
 
   async onApplicationShutdown() {
     if (this.bullCluster && this.bullCluster.status !== 'end') {
-      await this.bullCluster.quit();
+      await this.withTimeout(this.bullCluster.quit(), 3_000).catch(() => {
+        this.bullCluster?.disconnect();
+      });
+    }
+  }
+
+  destroyCacheCluster() {
+    this.cacheCluster?.destroy();
+  }
+
+  private async withTimeout<T>(operation: Promise<T>, timeout: number): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Shutdown timed out after ${timeout}ms`)), timeout);
+      timer.unref();
+    });
+
+    try {
+      return await Promise.race([operation, timeoutPromise]);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -92,16 +116,33 @@ export class RedisResourcesService implements OnApplicationShutdown {
 export class RuntimeLifecycleService implements OnApplicationShutdown {
   private logger?: LoggerService;
 
-  constructor(@Inject(CACHE_MANAGER) private readonly cache: Cache) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly redisResources: RedisResourcesService,
+  ) {}
 
   setLogger(logger: LoggerService) {
     this.logger = logger;
   }
 
   async onApplicationShutdown() {
-    await this.cache.disconnect();
-    const logger = this.logger as
-      (LoggerService & { getWinstonLogger?: () => { close: () => void } }) | undefined;
-    logger?.getWinstonLogger?.().close();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      await Promise.race([
+        this.cache.disconnect(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Cache shutdown timed out')), 3_000);
+          timer.unref();
+        }),
+      ]);
+    } catch {
+      this.redisResources.destroyCacheCluster();
+    } finally {
+      clearTimeout(timer);
+      const logger = this.logger as
+        (LoggerService & { getWinstonLogger?: () => { close: () => void } }) | undefined;
+      logger?.getWinstonLogger?.().close();
+    }
   }
 }

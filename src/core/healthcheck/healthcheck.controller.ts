@@ -1,9 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
+import { InjectConnection } from '@nestjs/mongoose';
 import { ApiTags } from '@nestjs/swagger';
-import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus';
+import { HealthCheck, HealthCheckService, MongooseHealthIndicator } from '@nestjs/terminus';
+import type { Connection } from 'mongoose';
 
 import { InternalUrl } from '../../shared/enums/index.js';
-import { PrismaService } from '../database/prisma.service.js';
 import { CacheHealthIndicator } from './cache.health-indicator.js';
 
 @Controller(InternalUrl.HEALTH_CHECK)
@@ -11,8 +12,8 @@ import { CacheHealthIndicator } from './cache.health-indicator.js';
 export class HealthcheckController {
   constructor(
     private readonly health: HealthCheckService,
-    private readonly prisma: PrismaHealthIndicator,
-    private readonly prismaService: PrismaService,
+    private readonly mongoose: MongooseHealthIndicator,
+    @InjectConnection() private readonly connection: Connection,
     private readonly cache: CacheHealthIndicator,
   ) {}
 
@@ -20,7 +21,8 @@ export class HealthcheckController {
   @HealthCheck()
   readiness() {
     return this.health.check([
-      async () => this.prisma.pingCheck('database', this.prismaService).withTimeout(2_000),
+      async () =>
+        this.mongoose.pingCheck('database', { connection: this.connection }).withTimeout(2_000),
       async () => this.cache.check(),
     ]);
   }

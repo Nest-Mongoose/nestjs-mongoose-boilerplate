@@ -1,10 +1,11 @@
 import { type INestApplication } from '@nestjs/common';
-import { HealthIndicatorService, PrismaHealthIndicator, TerminusModule } from '@nestjs/terminus';
+import { getConnectionToken } from '@nestjs/mongoose';
+import { HealthIndicatorService, MongooseHealthIndicator, TerminusModule } from '@nestjs/terminus';
 import { Test, type TestingModule } from '@nestjs/testing';
+import type { Connection } from 'mongoose';
 import request from 'supertest';
 import { vi } from 'vitest';
 
-import { PrismaService } from '../src/core/database/prisma.service.js';
 import { CacheHealthIndicator } from '../src/core/healthcheck/cache.health-indicator.js';
 import { HealthcheckController } from '../src/core/healthcheck/healthcheck.controller.js';
 
@@ -20,12 +21,12 @@ describe('Application (e2e)', () => {
       imports: [TerminusModule],
       controllers: [HealthcheckController],
       providers: [
-        { provide: PrismaService, useValue: {} },
+        { provide: getConnectionToken(), useValue: {} satisfies Partial<Connection> },
         {
-          provide: PrismaHealthIndicator,
+          provide: MongooseHealthIndicator,
           inject: [HealthIndicatorService],
           useFactory: (indicator: HealthIndicatorService) => ({
-            pingCheck: () =>
+            pingCheck: (_key: string, _options: { connection: Connection }) =>
               indicator.check('database').attempt(async () => {
                 if (!databaseUp) {
                   throw new Error('Database unavailable');

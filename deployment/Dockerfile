@@ -22,7 +22,6 @@ COPY ["package.json", "yarn.lock", "./"]
 RUN node -e "const fs=require('fs');const p=require('./package.json');fs.writeFileSync('package.json',JSON.stringify({name:p.name,version:p.version,private:p.private,type:p.type,dependencies:p.dependencies},null,2)+'\\n')" \
     && yarn install --frozen-lockfile --production=true --ignore-scripts --non-interactive \
     && test ! -e node_modules/.bin/tsc \
-    && test ! -e node_modules/.bin/prisma \
     && yarn cache clean
 
 FROM node:krypton-alpine AS runtime
