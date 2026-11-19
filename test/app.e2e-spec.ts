@@ -6,8 +6,8 @@ import type { Connection } from 'mongoose';
 import request from 'supertest';
 import { vi } from 'vitest';
 
-import { CacheHealthIndicator } from '../src/core/healthcheck/cache.health-indicator.js';
-import { HealthcheckController } from '../src/core/healthcheck/healthcheck.controller.js';
+import { CacheHealthIndicator } from '@/core/healthcheck/cache.health-indicator.js';
+import { HealthcheckController } from '@/core/healthcheck/healthcheck.controller.js';
 
 vi.setConfig({ testTimeout: 30000 });
 

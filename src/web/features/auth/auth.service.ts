@@ -4,8 +4,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { type HashOptions, argon2id, hash, verify } from 'argon2';
 import { Model } from 'mongoose';
 
-import { type CreateUserDto } from '../../../shared/dtos/index.js';
-import { User, type UserDocument } from '../../../shared/schemas/user.schema.js';
+import { type CreateUserDto } from '@/shared/dtos/index.js';
+import { User, type UserDocument } from '@/shared/schemas/user.schema.js';
 
 type PersistedUser = User & { id: string };
 export type AuthenticatedUser = Omit<PersistedUser, 'password'>;

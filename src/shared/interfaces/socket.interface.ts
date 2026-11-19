@@ -1,6 +1,6 @@
 import { Socket as IOSocket } from 'socket.io';
 
-import { type AuthenticatedUser } from '../../web/features/auth/auth.service.js';
+import { type AuthenticatedUser } from '@/web/features/auth/auth.service.js';
 
 export class Socket extends IOSocket {
   user?: AuthenticatedUser;

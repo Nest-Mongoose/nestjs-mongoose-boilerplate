@@ -4,7 +4,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService, MongooseHealthIndicator } from '@nestjs/terminus';
 import type { Connection } from 'mongoose';
 
-import { InternalUrl } from '../../shared/enums/index.js';
+import { InternalUrl } from '@/shared/enums/index.js';
 import { CacheHealthIndicator } from './cache.health-indicator.js';
 
 @Controller(InternalUrl.HEALTH_CHECK)

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
-import { ENV } from '../../../../shared/enums/index.js';
+import { ENV } from '@/shared/enums/index.js';
 import { AuthService } from '../auth.service.js';
 
 @Injectable()
