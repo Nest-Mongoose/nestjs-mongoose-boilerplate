@@ -1,3 +1,5 @@
+import { CacheHealthIndicator } from '@/health/cache.health-indicator.js';
+import { HealthController } from '@/health/health.controller.js';
 import { type INestApplication } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { HealthIndicatorService, MongooseHealthIndicator, TerminusModule } from '@nestjs/terminus';
@@ -5,9 +7,6 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { Connection } from 'mongoose';
 import request from 'supertest';
 import { vi } from 'vitest';
-
-import { CacheHealthIndicator } from '@/core/healthcheck/cache.health-indicator.js';
-import { HealthcheckController } from '@/core/healthcheck/healthcheck.controller.js';
 
 vi.setConfig({ testTimeout: 30000 });
 
@@ -19,7 +18,7 @@ describe('Application (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [TerminusModule],
-      controllers: [HealthcheckController],
+      controllers: [HealthController],
       providers: [
         { provide: getConnectionToken(), useValue: {} satisfies Partial<Connection> },
         {
